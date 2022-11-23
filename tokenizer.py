@@ -35,7 +35,7 @@ class ChnTokenizer(Tokenizer):
         text = re.sub("\s+", " ", text).strip()
         text = re.sub("“|”", " ", text)
         tag_token = '$'  # For tagging non-Chinese characters
-        tag_re = re.compile(r'\[pre]|[a-zA-Z0-9.]+')
+        tag_re = re.compile(r'\[subject]|\[pre]|[a-zA-Z0-9.]+')
         raw_tag = tag_re.findall(text)
         text = tag_re.sub(tag_token, text)
         tokens = list(text)

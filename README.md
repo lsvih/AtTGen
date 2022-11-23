@@ -32,10 +32,13 @@ optional arguments:
 
 Download the dataset to the `raw_data` folder, and run `python3 preprocess.py --dataset=xxxx` to preprocess the data.
 
+> Using argument `--subject_guild True` to enable the subject guild function.
+
 
 ## Usage
 
-> Test model on nyt-style dataset:
+> What is available dataset by this model?
+> Please preprocess the dataset, then check the files in `data` folder :)
 
 ### Train on CNShipNet dataset (Chinese datasets)
 

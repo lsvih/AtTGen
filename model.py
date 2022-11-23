@@ -16,9 +16,12 @@ class AtTGenModel(nn.Module):
         self.word_vocab = json.load(open(os.path.join(config.data_dir, config.word_vocab)))
         self.ontology_vocab = json.load(open(os.path.join(config.data_dir, config.ontology_vocab)))
         vocab_size = len(self.word_vocab)
-        rel_token = {k: (v + vocab_size) for k, v in self.ontology_vocab.items()}
-        self.word_vocab.update(rel_token)
-        self.word_vocab['[pre]'] = len(self.word_vocab)
+        ontology_class_token = {k: (v + vocab_size) for k, v in self.ontology_vocab.items()}
+        self.word_vocab.update(ontology_class_token)
+        if '[pre]' not in self.word_vocab:
+            self.word_vocab['[pre]'] = len(self.word_vocab)
+        if '<oov>' not in self.word_vocab:
+            self.word_vocab['<oov>'] = len(self.word_vocab)
         self.vocab_size = len(self.word_vocab)
         self.BCE = nn.BCEWithLogitsLoss()
         self.mBCE = MaskedBCE()
@@ -32,24 +35,24 @@ class AtTGenModel(nn.Module):
         length = sample['token_len'].cpu()
         mask = torch.gt(torch.unsqueeze(text_id, 2), 0).float().to(device)  # (batch_size,sent_len,1)
         mask.requires_grad = False
-        head_gt1 = sample['s1'].to(device)
-        head_gt2 = sample['s2'].to(device)
-        tail_gt1 = sample['o1'].to(device)
-        tail_gt2 = sample['o2'].to(device)
-        rel_gt1 = sample['p1'].to(device)
-        rel_gt2 = sample['p2'].to(device)
+        sub_gt1 = sample['s1'].to(device)
+        sub_gt2 = sample['s2'].to(device)
+        obj_gt1 = sample['o1'].to(device)
+        obj_gt2 = sample['o2'].to(device)
+        pre_gt1 = sample['p1'].to(device)
+        pre_gt2 = sample['p2'].to(device)
         o, h = self.encoder(t, length)
 
         if do_train:
             t_outs = self.decoder.train_forward(sample, o, h)
-            head_out1, head_out2 = t_outs[0]  # s
-            tail_out1, tail_out2 = t_outs[1]  # o
-            rel_out1, rel_out2 = t_outs[2]  # p
-            head_loss = self.mBCE(head_out1, head_gt1, mask) + self.mBCE(head_out2, head_gt2, mask)
-            tail_loss = self.mBCE(tail_out1, tail_gt1, mask) + self.mBCE(tail_out2, tail_gt2, mask)
-            rel_loss = self.mBCE(rel_out1, rel_gt1, mask) + self.mBCE(rel_out2, rel_gt2, mask)
+            sub_out1, sub_out2 = t_outs[0]  # s
+            obj_out1, obj_out2 = t_outs[1]  # o
+            pre_out1, pre_out2 = t_outs[2]  # p
+            sub_loss = self.mBCE(sub_out1, sub_gt1, mask) + self.mBCE(sub_out2, sub_gt2, mask)
+            obj_loss = self.mBCE(obj_out1, obj_gt1, mask) + self.mBCE(obj_out2, obj_gt2, mask)
+            pre_loss = self.mBCE(pre_out1, pre_gt1, mask) + self.mBCE(pre_out2, pre_gt2, mask)
 
-            loss_sum = rel_loss + head_loss + tail_loss
+            loss_sum = pre_loss + sub_loss + obj_loss
             return loss_sum
         else:
             result = self.decoder.test_forward(sample, o, h)
@@ -142,16 +145,8 @@ class Decoder(nn.Module):
             bidirectional=False,
         )
         self.dropout = nn.Dropout(0.2)
-
         self.use_attention = True
         self.attention = Attention(self.word_emb_size)
-        self.conv2_to_1_rel = nn.Conv1d(
-            in_channels=self.hidden_size * 2,
-            out_channels=self.word_emb_size,
-            kernel_size=3,
-            stride=1,
-            padding=1,
-        )
         self.conv2_to_1_ent = nn.Conv1d(
             in_channels=self.hidden_size * 2,
             out_channels=self.word_emb_size,
@@ -225,7 +220,7 @@ class Decoder(nn.Module):
 
         s_in = sample['s_k1_in'], sample['s_k2_in']
         o_in = sample['o_k1_in'], sample['o_k2_in']
-        r_in = sample['p_k1_in'], sample['p_k2_in']
+        p_in = sample['p_k1_in'], sample['p_k2_in']
 
         mask = torch.gt(torch.unsqueeze(text_id, 2), 0).float().to(self.sos.weight.device)  # (batch_size,sent_len,1)
         mask.requires_grad = False
@@ -286,7 +281,6 @@ class Decoder(nn.Module):
         sos = self.sos(torch.tensor(0).to(self.sos.weight.device)).unsqueeze(0).unsqueeze(1)
         t1_out, t1_h, t1_encoder_o = self.sos2ent(sos, encoder_o, t1_h, mask)
         t1_id, t1_name = self._out2entity(sent, t1_out)  # subject
-
         for id1, name1 in zip(t1_id, t1_name):
             t2_in = self._out2in(id1)
             t2_out, t2_h, t2_encoder_o = self.ent2ent(t2_in, t1_encoder_o, t1_h, mask)

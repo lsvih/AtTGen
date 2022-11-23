@@ -16,7 +16,7 @@ def process_en_data(raw_path, data_path):
     pass
 
 
-def process_CNShipNet(raw_path, data_path):
+def process_CNShipNet(raw_path, data_path, subject_guide):
     raw_data_path = os.path.join(raw_path, 'CNShipNet')
     if not os.path.exists(raw_data_path):
         raise FileNotFoundError('Raw data path not found!')
@@ -40,10 +40,12 @@ def process_CNShipNet(raw_path, data_path):
                     attribute_vocab.add(spo['predicate'])
             for token in tokenizer(instance['text'])[0]:
                 word_vocab.add(token)
-    attriute_vocab = {attr: i for i, attr in enumerate(attribute_vocab)}
+    if subject_guide:
+        word_vocab.add('[subject]')
+    attribute_vocab = {attr: i for i, attr in enumerate(attribute_vocab)}
     word_vocab = {word: i for i, word in enumerate(word_vocab)}
     open(os.path.join(target_data_path, 'attribute_vocab.json'), 'w').write(
-        json.dumps(attriute_vocab, ensure_ascii=False))
+        json.dumps(attribute_vocab, ensure_ascii=False))
     open(os.path.join(target_data_path, 'word_vocab.json'), 'w').write(json.dumps(word_vocab, ensure_ascii=False))
     # build data
     for file in file_map.keys():
@@ -53,6 +55,9 @@ def process_CNShipNet(raw_path, data_path):
             text = instance['text']
             tokens, raw_tokens = tokenizer(text)
             spo_list = instance['relation_list']
+            if subject_guide:
+                assert len(set(map(lambda x: x['subject'], spo_list))) == 1
+                text = "[subject]{}[subject]{}".format(spo_list[0]['subject'], text)
             f.write(json.dumps({
                 'text_id': instance['id'],
                 'text': text,
@@ -66,7 +71,7 @@ def process_CNShipNet(raw_path, data_path):
 def main(config):
     # Processing dataset
     if config.dataset == 'CNShipNet':
-        process_CNShipNet(config.raw_data_dir, config.data_dir)
+        process_CNShipNet(config.raw_data_dir, config.data_dir, config.subject_guide)
 
 
 if __name__ == '__main__':
@@ -74,5 +79,6 @@ if __name__ == '__main__':
     args.add_argument('--dataset', type=str, default='CNShipNet', help='Dataset name')
     args.add_argument('--raw_data_dir', type=str, default='./raw_data', help='Raw data directory')
     args.add_argument('--data_dir', type=str, default='./data', help='Data directory')
+    args.add_argument('--subject_guide', type=bool, default=False, help='Whether to use subject guide')
     args = args.parse_args()
     main(args)
