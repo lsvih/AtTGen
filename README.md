@@ -26,3 +26,25 @@ optional arguments:
   --encode_dim ENCODE_DIM
                         The dimension of the encoding
 ```
+
+
+## Dataset
+
+Download the dataset to the `raw_data` folder, and run `python3 preprocess.py --dataset=xxxx` to preprocess the data.
+
+
+## Usage
+
+> Test model on nyt-style dataset:
+
+### Train on CNShipNet dataset (Chinese datasets)
+
+```bash
+python3 main.py --gpu_ids=0 --data_dir=./data/CNShipNet/ --word_vocab=word_vocab.json --ontology_vocab=attribute_vocab.json --tokenizer=chn --do_train
+```
+
+### Train on NYT-style dataset (English datasets)
+
+```bash
+python3 main.py --gpu_ids=0 --data_dir=./data/nyt/ --ontology_vocab=relation_vocab.json --tokenizer=base --do_train
+```

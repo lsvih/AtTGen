@@ -15,10 +15,10 @@ def get_args():
     parser.add_argument("--do_train",
                         action='store_true',
                         default=True,
-                        help="Whether to run traininog.")
+                        help="Whether to run training.")
     parser.add_argument("--do_eval",
                         action='store_true',
-                        default=True,
+                        default=False,
                         help="Whether to run eval on the test set.")
     parser.add_argument("--data_dir",
                         default="./data/CNShipNet",
@@ -32,13 +32,16 @@ def get_args():
                         default="attribute_vocab.json",
                         type=str,
                         help="The ontology class file.")
+    parser.add_argument("--tokenizer", default="chn",
+                        type=str,
+                        help="The tokenizer type.")
     parser.add_argument('--seed',
                         type=int,
                         default=42,
                         help="The random seed for initialization")
     parser.add_argument('--gpu_ids',
                         type=str,
-                        default='0',
+                        default='2',
                         help="The GPU ids")
 
     # Hyperparameters

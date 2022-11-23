@@ -6,13 +6,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from tokenizer import load_tokenizer
 from utils import seq_and_vec, seq_max_pool, seq_gather
 
 
 class AtTGenModel(nn.Module):
     def __init__(self, config):
         super(AtTGenModel, self).__init__()
-        self.order = config.order
         self.word_vocab = json.load(open(os.path.join(config.data_dir, config.word_vocab)))
         self.ontology_vocab = json.load(open(os.path.join(config.data_dir, config.ontology_vocab)))
         vocab_size = len(self.word_vocab)
@@ -53,7 +53,7 @@ class AtTGenModel(nn.Module):
             return loss_sum
         else:
             result = self.decoder.test_forward(sample, o, h)
-            output = {"text": list(map(' '.join, sample['text'])), "decode_result": result,
+            output = {"text": sample['text'], "decode_result": result,
                       "spo_gold": sample['spo_list']}
             return output
 
@@ -127,6 +127,7 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.data_dir = config.data_dir
         self.word_emb_size = config.emb_dim
+        self.tokenizer = load_tokenizer(config.tokenizer)  # Tokenizer is introduced for restore the text while decoding
         self.hidden_size = config.encode_dim
         self.word_vocab = word_vocab
         self.id2word = {v: k for k, v in self.word_vocab.items()}
@@ -271,7 +272,7 @@ class Decoder(nn.Module):
             if _kk1 > 0:
                 for j, _kk2 in enumerate(out2.squeeze().tolist()[i:]):
                     if _kk2 > 0:
-                        _subject_name.append(' '.join(sent[i: i + j + 1]))
+                        _subject_name.append(self.tokenizer.restore(sent[i: i + j + 1]))  # adapt different tokenizers
                         _subject_id.append((i, i + j))
                         break
         return _subject_id, _subject_name

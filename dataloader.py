@@ -7,11 +7,12 @@ import torch
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
+from tokenizer import load_tokenizer
 from utils import find_entity_id_from_tokens, seq_padding, sort_all
 
 
 class TreeDataset(Dataset):
-    def __init__(self, data_dir: str = './data/CNShipNet', data_type: str = "train",
+    def __init__(self, data_dir: str = './data/CNShipNet', data_type: str = "train", tokenizer='chn',
                  word_vocab: str = 'word_vocab.json', ontology_vocab: str = 'attribute_vocab.json',
                  order: List[str] = ("subject", "object", "predicate")):
         print('Loading {} data...'.format(data_type))
@@ -20,12 +21,14 @@ class TreeDataset(Dataset):
         self.word_vocab = json.load(open(os.path.join(data_dir, word_vocab)))
         self.ontology_vocab = json.load(open(os.path.join(data_dir, ontology_vocab)))
         vocab_size = len(self.word_vocab)
-        rel_token = {k: (v + vocab_size) for k, v in self.ontology_vocab.items()}
-        self.word_vocab.update(rel_token)
-        self.word_vocab['[pre]'] = len(self.word_vocab)
-        self.ontology_class = list(rel_token.keys())
-
-        self.tokenizer = lambda text: text.split(" ")
+        ontology_class_token = {k: (v + vocab_size) for k, v in self.ontology_vocab.items()}
+        self.word_vocab.update(ontology_class_token)
+        if '[pre]' not in self.word_vocab:
+            self.word_vocab['[pre]'] = len(self.word_vocab)
+        if '<oov>' not in self.word_vocab:
+            self.word_vocab['<oov>'] = len(self.word_vocab)
+        self.ontology_class = list(ontology_class_token.keys())
+        self.tokenizer = load_tokenizer(tokenizer)
 
         self.text = []
         self.text_length = []
@@ -43,7 +46,7 @@ class TreeDataset(Dataset):
         self.P2 = []
         self.P_K1_in = []
         self.P_K2_in = []
-        file = open(os.path.join(self.data_dir, "new_{}_data.json".format(data_type))).read().strip().split('\n')
+        file = open(os.path.join(self.data_dir, "{}_data.json".format(data_type))).read().strip().split('\n')
         for line in tqdm(file):
             instance = json.loads(line)
             if data_type == 'train':
@@ -51,14 +54,15 @@ class TreeDataset(Dataset):
                                                      self.ontology_class)
                 instances = expanded_instances
             else:
-                token = self.tokenizer(instance["text"]) + ['[pre]'] + self.ontology_class
-                instance['text'] = ' '.join(token)
+                token = self.tokenizer(instance["text"])[0] + ['[pre]'] + self.ontology_class
+                # instance['text'] = self.tokenizer.restore(token)
+                instance['token'] = token
                 instances = [instance]
             for instance in instances:
                 text = instance["text"]
                 spo_list = instance["spo_list"]
                 text_id = []
-                for c in (self.tokenizer(text)):
+                for c in instance['token']:
                     text_id.append(self.word_vocab.get(c, self.word_vocab["<oov>"]))
                 self.text_length.append(len(text_id))
                 assert len(text_id) > 0
@@ -78,7 +82,7 @@ class TreeDataset(Dataset):
                 p1_gt = instance.get("p1_gt", [])
                 p2_gt = instance.get("p2_gt", [])
 
-                self.text.append(self.tokenizer(text))
+                self.text.append(self.tokenizer(text)[1])  # raw tokens
                 self.spo_list.append(spo_list)
 
                 self.S1.append(s1_gt)
@@ -137,16 +141,17 @@ class TreeDataset(Dataset):
         return len(self.text)
 
     def spo_to_seq(self, text, spo_list, tokenizer, ontology_class):
+        # The relative position of element in tree is calculated by raw_token
         tree = self.spo_to_tree(spo_list, self.order)
-        tokens = tokenizer(text) + ['[pre]'] + ontology_class
+        tokens = tokenizer(text)[1] + ['[pre]'] + ontology_class  # raw_token
+        _tokens = tokenizer(text)[0] + ['[pre]'] + ontology_class  # embellished token for attribute
 
         def to_ent(outp):
-            # side effect!
             ent1, ent2 = [[0] * len(tokens) for _ in range(2)]
             for name in outp:
-                _id = find_entity_id_from_tokens(tokens, self.tokenizer(name))
+                _id = find_entity_id_from_tokens(tokens, self.tokenizer(name)[1])
                 ent1[_id] = 1
-                ent2[_id + len(self.tokenizer(name)) - 1] = 1
+                ent2[_id + len(self.tokenizer(name)[1]) - 1] = 1
             return ent1, ent2
 
         def to_in_key(inp, name):
@@ -154,8 +159,8 @@ class TreeDataset(Dataset):
             if not inp:
                 return 0, 0
 
-            k1 = find_entity_id_from_tokens(tokens, self.tokenizer(inp))
-            k2 = k1 + len(self.tokenizer(inp)) - 1
+            k1 = find_entity_id_from_tokens(tokens, self.tokenizer(inp)[1])
+            k2 = k1 + len(self.tokenizer(inp)[1]) - 1
             out = k1, k2
             return out
 
@@ -179,7 +184,9 @@ class TreeDataset(Dataset):
                     raise ValueError("should be in predicate, subject, object")
 
             result = {
-                "text": ' '.join(tokens),
+                "text": tokenizer.restore(tokens),
+                "token": _tokens,
+                "raw_token": tokens,
                 "spo_list": spo_list,
                 "s_k1": s_k1,
                 "s_k2": s_k2,
@@ -251,5 +258,8 @@ def collate(batch: List[Tuple]):
 
 
 if __name__ == '__main__':
-    x = TreeDataset()
+    from preprocess import process_CNShipNet
+
+    process_CNShipNet('./raw_data', './data')
+    x = TreeDataset(data_type="validate")
     exit()
