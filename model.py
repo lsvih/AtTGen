@@ -13,6 +13,7 @@ from utils import seq_and_vec, seq_max_pool, seq_gather
 class AtTGenModel(nn.Module):
     def __init__(self, config):
         super(AtTGenModel, self).__init__()
+        self.skip_subject = config.skip_subject
         self.word_vocab = json.load(open(os.path.join(config.data_dir, config.word_vocab)))
         self.ontology_vocab = json.load(open(os.path.join(config.data_dir, config.ontology_vocab)))
         vocab_size = len(self.word_vocab)
@@ -45,15 +46,18 @@ class AtTGenModel(nn.Module):
 
         if do_train:
             t_outs = self.decoder.train_forward(sample, o, h)
-            sub_out1, sub_out2 = t_outs[0]  # s
-            obj_out1, obj_out2 = t_outs[1]  # o
-            pre_out1, pre_out2 = t_outs[2]  # p
-            sub_loss = self.mBCE(sub_out1, sub_gt1, mask) + self.mBCE(sub_out2, sub_gt2, mask)
+            if not self.skip_subject:
+                sub_out1, sub_out2 = t_outs[0]  # s
+                obj_out1, obj_out2 = t_outs[1]  # o
+                pre_out1, pre_out2 = t_outs[2]  # p
+                sub_loss = self.mBCE(sub_out1, sub_gt1, mask) + self.mBCE(sub_out2, sub_gt2, mask)
+            else:
+                obj_out1, obj_out2 = t_outs[0]  # o
+                pre_out1, pre_out2 = t_outs[1]  # p
+                sub_loss = None
             obj_loss = self.mBCE(obj_out1, obj_gt1, mask) + self.mBCE(obj_out2, obj_gt2, mask)
             pre_loss = self.mBCE(pre_out1, pre_gt1, mask) + self.mBCE(pre_out2, pre_gt2, mask)
-
-            loss_sum = pre_loss + sub_loss + obj_loss
-            return loss_sum
+            return sub_loss, obj_loss, pre_loss
         else:
             result = self.decoder.test_forward(sample, o, h)
             output = {"text": sample['text'], "decode_result": result,
@@ -128,6 +132,7 @@ class Encoder(nn.Module):
 class Decoder(nn.Module):
     def __init__(self, config, word_vocab):
         super(Decoder, self).__init__()
+        self.skip_subject = config.skip_subject
         self.data_dir = config.data_dir
         self.word_emb_size = config.emb_dim
         self.tokenizer = load_tokenizer(config.tokenizer)  # Tokenizer is introduced for restore the text while decoding
@@ -225,13 +230,20 @@ class Decoder(nn.Module):
         mask = torch.gt(torch.unsqueeze(text_id, 2), 0).float().to(self.sos.weight.device)  # (batch_size,sent_len,1)
         mask.requires_grad = False
 
-        t1_in = sos
-        t2_in = s_in
-        t3_in = o_in
-        t1_out, h, new_encoder_o = self.sos2ent(t1_in, encoder_o, h, mask)  # t1_out: s
-        t2_out, h, new_encoder_o = self.ent2ent(t2_in, new_encoder_o, h, mask)  # t2_out: o
-        t3_out, h, new_encoder_o = self.ent2ent(t3_in, new_encoder_o, h, mask)  # t3_out: p
-
+        if not self.skip_subject:
+            t1_in = sos
+            t2_in = s_in
+            t3_in = o_in
+            t1_out, h, new_encoder_o = self.sos2ent(t1_in, encoder_o, h, mask)  # t1_out: s
+            t2_out, h, new_encoder_o = self.ent2ent(t2_in, new_encoder_o, h, mask)  # t2_out: o
+            t3_out, h, new_encoder_o = self.ent2ent(t3_in, new_encoder_o, h, mask)  # t3_out: p
+        else:
+            t1_in = sos
+            t2_in = o_in
+            t3_in = p_in
+            t1_out, h, new_encoder_o = self.sos2ent(t1_in, encoder_o, h, mask)  # t1_out: o
+            t2_out, h, new_encoder_o = self.ent2ent(t2_in, new_encoder_o, h, mask)  # t2_out: p
+            t3_out = t3_in
         return t1_out, t2_out, t3_out
 
     def test_forward(self, sample, encoder_o, decoder_h) -> List[List[Dict[str, str]]]:
@@ -279,19 +291,29 @@ class Decoder(nn.Module):
     def extract_items(self, sent, text_id, mask, encoder_o, t1_h):
         R = []
         sos = self.sos(torch.tensor(0).to(self.sos.weight.device)).unsqueeze(0).unsqueeze(1)
-        t1_out, t1_h, t1_encoder_o = self.sos2ent(sos, encoder_o, t1_h, mask)
-        t1_id, t1_name = self._out2entity(sent, t1_out)  # subject
-        for id1, name1 in zip(t1_id, t1_name):
-            t2_in = self._out2in(id1)
-            t2_out, t2_h, t2_encoder_o = self.ent2ent(t2_in, t1_encoder_o, t1_h, mask)
-            t2_id, t2_name = self._out2entity(sent, t2_out)  # object
-            if len(t2_name) > 0:
-                for id2, name2 in zip(t2_id, t2_name):
-                    t3_in = self._out2in(id2)
-                    t3_out, _, _ = self.ent2ent(t3_in, t2_encoder_o, t2_h, mask)
-                    _, t3_name = self._out2entity(sent, t3_out)  # predicate
-                    for name3 in t3_name:
-                        R.append({'subject': name1, 'object': name2, 'predicate': name3})
+        if not self.skip_subject:
+            t1_out, t1_h, t1_encoder_o = self.sos2ent(sos, encoder_o, t1_h, mask)
+            t1_id, t1_name = self._out2entity(sent, t1_out)  # subject
+            for id1, name1 in zip(t1_id, t1_name):
+                t2_in = self._out2in(id1)
+                t2_out, t2_h, t2_encoder_o = self.ent2ent(t2_in, t1_encoder_o, t1_h, mask)
+                t2_id, t2_name = self._out2entity(sent, t2_out)  # object
+                if len(t2_name) > 0:
+                    for id2, name2 in zip(t2_id, t2_name):
+                        t3_in = self._out2in(id2)
+                        t3_out, _, _ = self.ent2ent(t3_in, t2_encoder_o, t2_h, mask)
+                        _, t3_name = self._out2entity(sent, t3_out)  # predicate
+                        for name3 in t3_name:
+                            R.append({'subject': name1, 'object': name2, 'predicate': name3})
+        else:
+            t1_out, t1_h, t1_encoder_o = self.sos2ent(sos, encoder_o, t1_h, mask)
+            t1_id, t1_name = self._out2entity(sent, t1_out)  # object
+            for id1, name1 in zip(t1_id, t1_name):
+                t2_in = self._out2in(id1)
+                t2_out, t2_h, t2_encoder_o = self.ent2ent(t2_in, t1_encoder_o, t1_h, mask)
+                t2_id, t2_name = self._out2entity(sent, t2_out)  # predicate
+                for name2 in t2_name:
+                    R.append({'object': name1, 'predicate': name2})
         return R
 
     def forward(self, sample, encoder_o, h, is_train):

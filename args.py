@@ -70,6 +70,11 @@ def get_args():
                         default=200,
                         type=int,
                         help="The dimension of the encoding")
+    # skip subject
+    parser.add_argument("--skip_subject",
+                        default=True,
+                        type=bool,
+                        help="Whether to skip the subject")
 
     args = parser.parse_args()
     if args.gpu_ids == "":

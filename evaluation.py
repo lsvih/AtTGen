@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 def evaluate(model, val_loader, config):
     model.eval()
-    f1_triple = F1Triplet()
+    f1_triple = F1Triplet(config)
     print('Evaluating...')
     with torch.no_grad():
         for batch_ndx, sample in tqdm(enumerate(val_loader), total=len(val_loader)):
@@ -17,7 +17,12 @@ def evaluate(model, val_loader, config):
 
 
 class F1Triplet:
-    def __init__(self):
+    def __init__(self, config):
+        self.skip_subject = config.skip_subject
+        if self.skip_subject:
+            self.get_seq = lambda dic: (dic["object"], dic["predicate"])
+        else:
+            self.get_seq = lambda dic: (dic["subject"], dic["object"], dic["predicate"])
         self.A = 1e-10
         self.B = 1e-10
         self.C = 1e-10
@@ -34,11 +39,10 @@ class F1Triplet:
         result = {"precision": p, "recall": r, "fscore": f1}
         return result
 
-    def __call__(self, predictions: List[List[Dict[str, str]]], gold_labels: List[List[Dict[str, str]]],
-                 get_seq=lambda dic: (dic["object"], dic["predicate"], dic["subject"])):
+    def __call__(self, predictions: List[List[Dict[str, str]]], gold_labels: List[List[Dict[str, str]]]):
         for g, p in zip(gold_labels, predictions):
-            g_set = set("_".join(get_seq(gg)) for gg in g)
-            p_set = set("_".join(get_seq(pp)) for pp in p)
+            g_set = set("_".join(self.get_seq(gg)) for gg in g)
+            p_set = set("_".join(self.get_seq(pp)) for pp in p)
             self.A += len(g_set & p_set)
             self.B += len(p_set)
             self.C += len(g_set)
@@ -56,9 +60,14 @@ if __name__ == '__main__':
     import args
 
     config = args.get_args()
+    config.name = 'ship'
+    config.batch_size = 5
+    # config.tokenizer = 'base'
+    # config.data_dir = './data/nyt'
+    # config.ontology_vocab = 'relation_vocab.json'
 
-    val_dataset = TreeDataset(data_dir=config.data_dir, data_type='validate')
-    val_loader = DataLoader(val_dataset, batch_size=config.batch_size, shuffle=False, num_workers=4,
+    val_dataset = TreeDataset(data_dir=config.data_dir, data_type='train', ontology_vocab=config.ontology_vocab, tokenizer=config.tokenizer)
+    val_loader = DataLoader(val_dataset, batch_size=config.batch_size, shuffle=False, num_workers=1,
                             collate_fn=collate, pin_memory=True)
 
     model = Model(config)

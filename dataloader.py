@@ -12,7 +12,7 @@ from utils import find_entity_id_from_tokens, seq_padding, sort_all
 
 
 class TreeDataset(Dataset):
-    def __init__(self, data_dir: str = './data/CNShipNet', data_type: str = "train", tokenizer='chn',
+    def __init__(self, data_dir: str = './data/jave', data_type: str = "train", tokenizer='char',
                  word_vocab: str = 'word_vocab.json', ontology_vocab: str = 'attribute_vocab.json',
                  order: List[str] = ("subject", "object", "predicate")):
         print('Loading {} data...'.format(data_type))
@@ -49,7 +49,7 @@ class TreeDataset(Dataset):
         file = open(os.path.join(self.data_dir, "{}_data.json".format(data_type))).read().strip().split('\n')
         for line in tqdm(file):
             instance = json.loads(line)
-            if data_type == 'train':
+            if data_type == 'train' or True:
                 expanded_instances = self.spo_to_seq(instance["text"], instance["spo_list"], self.tokenizer,
                                                      self.ontology_class)
                 instances = expanded_instances
@@ -64,7 +64,10 @@ class TreeDataset(Dataset):
                 text_id = []
                 for c in instance['token']:
                     text_id.append(self.word_vocab.get(c, self.word_vocab["<oov>"]))
-                self.text_length.append(len(text_id))
+                if len(text_id) > 512:
+                    continue
+                else:
+                    self.text_length.append(len(text_id))
                 assert len(text_id) > 0
                 self.token_ids.append(text_id)
 
@@ -82,7 +85,7 @@ class TreeDataset(Dataset):
                 p1_gt = instance.get("p1_gt", [])
                 p2_gt = instance.get("p2_gt", [])
 
-                self.text.append(self.tokenizer(text)[1])  # raw tokens
+                self.text.append(instance['token'])  # raw tokens
                 self.spo_list.append(spo_list)
 
                 self.S1.append(s1_gt)

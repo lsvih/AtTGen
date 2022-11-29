@@ -34,6 +34,8 @@ Download the dataset to the `raw_data` folder, and run `python3 preprocess.py --
 
 > Using argument `--subject_guild True` to enable the subject guild function.
 
+Pre-processed NYT dataset is attached in the `data` folder, which can be used directly.
+
 
 ## Usage
 

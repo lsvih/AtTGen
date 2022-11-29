@@ -71,10 +71,13 @@ def find_entity_id_from_tokens(tokens: List[str], entity: List[str]):
     return id
 
 
-def seq_padding(X):
+def seq_padding(X, max_len=None):
     L = [len(x) for x in X]
     ML = max(L)
-    return [x + [0] * (ML - len(x)) for x in X]
+    result = [x + [0] * (ML - len(x)) for x in X]
+    if max_len is not None:
+        result = [x[:max_len] for x in result]
+    return result
 
 
 def seq_padding_vec(X):

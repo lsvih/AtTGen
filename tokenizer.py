@@ -20,6 +20,16 @@ class BaseTokenizer(Tokenizer):
         return ' '.join(tokens)
 
 
+class CharTokenizer(Tokenizer):
+    def tokenizer(self, text):
+        if text.startswith('@'):
+            return [text], [text]
+        return list(text), list(text)
+
+    def restore(self, tokens):
+        return ''.join(tokens)
+
+
 class ChnTokenizer(Tokenizer):
     def __init__(self):
         import jionlp as jio
@@ -30,12 +40,13 @@ class ChnTokenizer(Tokenizer):
             return [text], [text]
         # Remove punctuations
         text = self.jio.remove_exception_char(text)
-        text = text.upper()
+        text = text.lower()
         text = text.replace(';', '')
         text = re.sub("\s+", " ", text).strip()
         text = re.sub("“|”", " ", text)
         tag_token = '$'  # For tagging non-Chinese characters
-        tag_re = re.compile(r'\[subject]|\[pre]|[a-zA-Z0-9.]+')
+        tag_re = re.compile(r'\[sub]|\[/sub]|\[pre]|[a-zA-Z0-9.]+')
+        number_re = re.compile(r'^[0-9.]+$')
         raw_tag = tag_re.findall(text)
         text = tag_re.sub(tag_token, text)
         tokens = list(text)
@@ -43,14 +54,15 @@ class ChnTokenizer(Tokenizer):
         tag_idx = 0
         for token_idx, token in enumerate(tokens):
             if token == tag_token:
-                if raw_tag[tag_idx].isalpha():
-                    tokens[token_idx] = '[eng]'
-                elif raw_tag[tag_idx].isdigit():
-                    tokens[token_idx] = '[num]'
-                elif raw_tag[tag_idx] == '[pre]':
-                    tokens[token_idx] = '[pre]'
-                else:
-                    tokens[token_idx] = '[eng_num]'
+                # if raw_tag[tag_idx].isalpha():
+                #     tokens[token_idx] = '[eng]'
+                # elif raw_tag[tag_idx].isdigit() or number_re.match(raw_tag[tag_idx]):
+                #     tokens[token_idx] = '[num]'
+                # elif raw_tag[tag_idx] == '[pre]':
+                #     tokens[token_idx] = '[pre]'
+                # else:
+                #     tokens[token_idx] = '[eng_num]'
+                tokens[token_idx] = raw_tag[tag_idx]
                 raw_tokens.append(raw_tag[tag_idx])
                 tag_idx += 1
             else:
@@ -75,5 +87,8 @@ def load_tokenizer(tokenizer_name):
     elif tokenizer_name == "chn":
         chn_tokenizer = ChnTokenizer()
         return chn_tokenizer
+    elif tokenizer_name == "char":
+        char_tokenizer = CharTokenizer()
+        return char_tokenizer
     else:
         raise ValueError("Tokenizer {} not found".format(tokenizer_name))
