@@ -174,7 +174,6 @@ class Decoder(nn.Module):
         return output, attn, hidden
 
     def to_ent(self, input, h, encoder_o, mask):
-        # TODO mask
         output, attn, h = self.forward_step(input, h, encoder_o)
         output = output.squeeze(1)
 
@@ -205,9 +204,6 @@ class Decoder(nn.Module):
         k1, k2 = k1.to(self.sos.weight.device), k2.to(self.sos.weight.device)
         k1 = seq_gather([encoder_o, k1])
         k2 = seq_gather([encoder_o, k2])
-        # TODO optimize this part by torch built-in function
-        # print(k1.size())
-        # k = torch.cat([k1,k2],1)
         ent_in = k1 + k2
         ent_in = ent_in.unsqueeze(1)
         ent_out, h, new_encoder_o, attn = self.to_ent(ent_in, h, encoder_o, mask)
@@ -349,6 +345,13 @@ class Attention(nn.Module):
         >>> context = Variable(torch.randn(5, 3, 256))
         >>> output = Variable(torch.randn(5, 5, 256))
         >>> output, attn = attention(output, context)
+    Citation::
+        @article{bahdanau2014neural,
+            title={Neural machine translation by jointly learning to align and translate},
+            author={Bahdanau, Dzmitry and Cho, Kyunghyun and Bengio, Yoshua},
+            journal={arXiv preprint arXiv:1409.0473},
+
+
     """
 
     def __init__(self, dim):

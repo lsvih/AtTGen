@@ -14,14 +14,14 @@ def get_args():
                         help="Experiment name, for logging and saving models")
     parser.add_argument("--do_train",
                         action='store_true',
-                        default=True,
+                        default=False,
                         help="Whether to run training.")
     parser.add_argument("--do_eval",
                         action='store_true',
                         default=False,
                         help="Whether to run eval on the test set.")
     parser.add_argument("--data_dir",
-                        default="./data/CNShipNet",
+                        default="./data/jave",
                         type=str,
                         help="The input data dir.")
     parser.add_argument("--word_vocab",
@@ -32,7 +32,7 @@ def get_args():
                         default="attribute_vocab.json",
                         type=str,
                         help="The ontology class file.")
-    parser.add_argument("--tokenizer", default="chn",
+    parser.add_argument("--tokenizer", default="char",
                         type=str,
                         help="The tokenizer type.")
     parser.add_argument('--seed',

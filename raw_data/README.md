@@ -24,7 +24,7 @@ This dataset should be applied [here](https://github.com/jd-aig/JAVE) and put `*
 
 `attribute_vocab.txt` can `word_vocab.txt` is downloaded from [here](https://github.com/jd-aig/JAVE).
 
-## NYT
+## NYT-like datasets
 
 This dataset is pre-processed and attached in the `/data/nyt` folder already. It can be used without preprocessing.
 

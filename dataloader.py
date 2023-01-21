@@ -1,3 +1,5 @@
+# The code of SPO-sequence refers to [OpenJERE](https://github.com/WindChimeRan/OpenJERE)
+
 import json
 import os
 from typing import Dict, List, Tuple
@@ -49,7 +51,7 @@ class TreeDataset(Dataset):
         file = open(os.path.join(self.data_dir, "{}_data.json".format(data_type))).read().strip().split('\n')
         for line in tqdm(file):
             instance = json.loads(line)
-            if data_type == 'train' or True:
+            if data_type == 'train':
                 expanded_instances = self.spo_to_seq(instance["text"], instance["spo_list"], self.tokenizer,
                                                      self.ontology_class)
                 instances = expanded_instances

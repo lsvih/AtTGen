@@ -49,6 +49,7 @@ def main(config):
                                  collate_fn=collate, pin_memory=True)
         # Load Best Model
         model = load_model(model, './runs/{}_best'.format(config.name))
+        print("Total parameter size: {}".format(sum(p.numel() for p in model.parameters())))
         model.to(config.device)
         score = evaluate(model, test_loader, config)
         print("Test F1 score: {}".format(score))

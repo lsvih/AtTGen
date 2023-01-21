@@ -19,10 +19,11 @@ def evaluate(model, val_loader, config):
 class F1Triplet:
     def __init__(self, config):
         self.skip_subject = config.skip_subject
+        norm_t = lambda t: t.lower().strip('@')
         if self.skip_subject:
             self.get_seq = lambda dic: (dic["object"], dic["predicate"])
         else:
-            self.get_seq = lambda dic: (dic["subject"], dic["object"], dic["predicate"])
+            self.get_seq = lambda dic: (norm_t(dic["subject"]), norm_t(dic["object"]), norm_t(dic["predicate"]))
         self.A = 1e-10
         self.B = 1e-10
         self.C = 1e-10
@@ -66,7 +67,8 @@ if __name__ == '__main__':
     # config.data_dir = './data/nyt'
     # config.ontology_vocab = 'relation_vocab.json'
 
-    val_dataset = TreeDataset(data_dir=config.data_dir, data_type='train', ontology_vocab=config.ontology_vocab, tokenizer=config.tokenizer)
+    val_dataset = TreeDataset(data_dir=config.data_dir, data_type='train', ontology_vocab=config.ontology_vocab,
+                              tokenizer=config.tokenizer)
     val_loader = DataLoader(val_dataset, batch_size=config.batch_size, shuffle=False, num_workers=1,
                             collate_fn=collate, pin_memory=True)
 

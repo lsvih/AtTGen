@@ -20,17 +20,23 @@ def train(model, train_loader, val_loader, config):
             optimizer.zero_grad()
             loss_s, loss_o, loss_p = model(batch, do_train=True)
             if config.n_gpu > 1:
-                # loss = (loss_s + loss_o + loss_p).mean()
-                loss = (loss_o + loss_p).mean()
+                if config.skip_subject:
+                    loss = (loss_o + loss_p).mean()
+                else:
+                    loss = (loss_s + loss_o + loss_p).mean()
             else:
-                loss = loss_o + loss_p
-                # loss = loss_s + loss_o + loss_p
+                if config.skip_subject:
+                    loss = loss_o + loss_p
+                else:
+                    loss = loss_s + loss_o + loss_p
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 10.0)
             optimizer.step()
-            pbar.set_description(
-                # "Epoch %d, Loss - s: %.4f, o: %.4f, p: %.4f" % (epoch, loss_s.item(), loss_o.item(), loss_p.item()))
-                "Epoch %d, Loss - o: %.4f, p: %.4f" % (epoch, loss_o.item(), loss_p.item()))
+            if config.skip_subject:
+                pbar.set_description("Epoch %d, Loss - o: %.4f, p: %.4f" % (epoch, loss_o.item(), loss_p.item()))
+            else:
+                pbar.set_description(
+                    "Epoch %d, Loss - s: %.4f, o: %.4f, p: %.4f" % (epoch, loss_s.item(), loss_o.item(), loss_p.item()))
 
         save_model(model, str(epoch), config)
         new_score = evaluate(model, val_loader, config)
