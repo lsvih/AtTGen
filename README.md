@@ -1,5 +1,7 @@
 # AtTGen
 
+Implementation of "AtTGen: Attribute Tree Generation for Real-World Attribute Joint Extraction", ACL 2023.
+
 ## Preparation
 
 Please install the dependencies first:
@@ -100,4 +102,28 @@ python3 main.py --gpu_ids=0 --data_dir=./data/CNShipNet/ --word_vocab=word_vocab
 
 ```bash
 python3 main.py --gpu_ids=0 --data_dir=./data/nyt/ --ontology_vocab=relation_vocab.json --tokenizer=base --do_train
+```
+
+## Reference
+
+- [OpenJERE](https://github.com/WindChimeRan/OpenJERE) for Tree2Sequence Loader
+- [JAVE](https://github.com/jd-aig/JAVE) for MEPAVE dataset
+- [ScalingUp](https://github.com/lanmanok/ACL19_Scaling_Up_Open_Tagging/) for AE100k dataset
+
+------
+
+If you found this work useful, please cite it as follows:
+
+```
+@inproceedings{li-etal-2023-attgen,
+    title = "AtTGen: Attribute Tree Generation for Real-World Attribute Joint Extraction",
+    author = "Li, Yanzeng  and
+      Xue, Bingcong  and
+      Zhang, Ruoyu   and
+      Zou, Lei",
+    booktitle = "Proceedings of The 61st Annual Meeting of the Association for Computational Linguistics",
+    month = july,
+    year = "2023",
+    address = "Toronto, Canada"
+}
 ```
