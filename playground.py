@@ -10,8 +10,9 @@ from pptree import Node, print_tree
 
 
 def run(config):
+    config.data_dir = './data/jave_sample'
     model = AtTGenModel(config)
-    test_dataset = TreeDataset(data_dir='./data/jave_sample', data_type='test', word_vocab=config.word_vocab,
+    test_dataset = TreeDataset(data_dir=config.data_dir, data_type='test', word_vocab=config.word_vocab,
                                ontology_vocab=config.ontology_vocab, tokenizer=config.tokenizer)
     test_loader = DataLoader(test_dataset, batch_size=1, shuffle=False, num_workers=0,
                              collate_fn=collate, pin_memory=True)
