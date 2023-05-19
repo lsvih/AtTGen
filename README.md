@@ -2,6 +2,10 @@
 
 Implementation of "AtTGen: Attribute Tree Generation for Real-World Attribute Joint Extraction", ACL 2023.
 
+> A lightweight attribute extraction model that achieves above 96% F1-score on MEPAVE dataset ;)
+
+![Preview](/assets/screen_record.gif)
+
 ## Preparation
 
 Please install the dependencies first:
@@ -56,7 +60,7 @@ Pre-processed NYT dataset is attached in the `data` folder, which can be used di
 
 ## Playground (Recommended)
 
-Benefiting from the parameter efficiency of AtTGen, we can easily train and inference the model, and provide the trained model weights conveniently.
+Benefiting from the parameter-efficiency of this model, we can easily train and inference the model, and evaluate the trained model weights conveniently.
 
 The trained model weights are in `runs/jave_best` file, which is trained by default hyper-parameters.
 
@@ -74,31 +78,31 @@ We use the sample data in [MEPAVE](https://github.com/jd-aig/JAVE/blob/master/da
 Due to licensing restrictions, we cannot provide this dataset directly, please apply a license to use [here](https://github.com/jd-aig/JAVE),
  download the whole dataset and then put `*.txt` files in `raw_data/jave` folder.
 
-2. Preprocessing the dataset
+2. Preprocess the data
 
 ```bash
 python3 preprocess.py --dataset=jave
 ```
 
-3. Training the model
+3. Train the model
 
 ```bash
 python3 main.py --do_train --gpu_ids=0 --data_dir=./data/jave/ --ontology_vocab=attribute_vocab.json --tokenizer=char --name=jave
 ```
 
-4. Testing the model
+4. Evaluate the model
 
 ```bash
 python3 main.py --do_eval --gpu_ids=0 --data_dir=./data/jave/ --ontology_vocab=attribute_vocab.json --tokenizer=char --name=jave
 ```
 
-### Train on CNShipNet dataset (Chinese datasets)
+### Train on ReCNShipNet dataset (Chinese)
 
 ```bash
 python3 main.py --gpu_ids=0 --data_dir=./data/CNShipNet/ --word_vocab=word_vocab.json --ontology_vocab=attribute_vocab.json --tokenizer=chn --do_train
 ```
 
-### Train on NYT-style dataset (English datasets, e.g. AE100k)
+### Train on NYT-style dataset (English, e.g. AE110k)
 
 ```bash
 python3 main.py --gpu_ids=0 --data_dir=./data/nyt/ --ontology_vocab=relation_vocab.json --tokenizer=base --do_train
